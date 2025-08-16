@@ -1,0 +1,61 @@
+{
+	"name": "piggly/pagamentos-para-woocommerce-com-appmax",
+	"description": "Habilita os métodos de pagamentos do gateway de pagamentos da AppMax.",
+	"version": "1.1.1-beta",
+	"type": "wordpress-plugin",
+	"license": "piggly",
+	"homepage": "https://github.com/piggly-lab/pagamentos-para-woocommerce-com-appmax",
+	"autoload": {
+		"psr-4": {
+			"AppMax\\WooCommerce\\Gateway\\": "src/"
+		},
+		"classmap": [
+			"libs"
+		]
+	},
+	"authors": [
+		{
+			"name": "Caique Araujo",
+			"email": "caique@piggly.com.br",
+			"homepage": "https://github.com/caiquearaujo",
+			"role": "Developer"
+		},
+		{
+			"name": "Piggly Lab",
+			"email": "dev@piggly.com.br",
+			"homepage": "https://github.com/piggly-dev",
+			"role": "Developer"
+		}
+	],
+	"require": {
+		"php": "^7.2 || ^8.0",
+		"piggly/wordpress-starter-kit": "1.1.2",
+		"piggly/php-api-client": "2.1.*",
+		"chillerlan/php-qrcode": "^3.3"
+	},
+	"require-dev": {
+		"php": "^7.4 || ^8.0"
+	},
+	"scripts": {
+		"pre-install-cmd": "@create-libs-folder",
+		"pre-update-cmd": "@create-libs-folder",
+		"create-libs-folder": "npm run gulp composer:create_prefixed_folder",
+		"prefix-dependencies": [
+			"@composer --working-dir=php-scoper install",
+			"php-scoper/vendor/bin/php-scoper add-prefix --config=php-scoper/config.php --output-dir=./libs --force",
+			"npm run gulp composer:delete_prefixed_libraries",
+			"@composer dump-autoload --no-plugins"
+		],
+		"dev-composer-install": [
+			"@create-libs-folder",
+			"@composer install --prefer-dist --no-scripts",
+			"@prefix-dependencies"
+		],
+		"build": [
+			"npm run gulp composer:delete_lock_and_vendor",
+			"composer install --no-ansi --no-dev --no-interaction --no-plugins --no-progress --no-scripts --optimize-autoloader",
+			"@prefix-dependencies"
+		]
+	},
+	"minimum-stability": "stable"
+}
