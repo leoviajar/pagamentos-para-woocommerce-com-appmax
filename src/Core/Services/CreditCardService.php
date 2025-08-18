@@ -64,7 +64,7 @@ class CreditCardService
 	 */
 	public static function installmentsOnCart(): string
 	{
-		$total = Parser::anyToFloat(WC()->cart->get_totals()['total']);
+		$total = Parser::anyToFloat(WC()->cart->get_totals()["total"]);
 
 		if (empty($total)) {
 			return '';
@@ -102,7 +102,7 @@ class CreditCardService
 		}
 
 		$_installments = [];
-		$last_key = array_key_last($installments); // Chave do último elemento para a lógica de 'selected'
+		// $last_key = array_key_last($installments); // Chave do último elemento para a lógica de 'selected'
 
 		foreach ($installments as $index => $installment) {
 			// Validação do objeto: garante que os métodos necessários existam para evitar erros fatais.
@@ -123,7 +123,7 @@ class CreditCardService
 			// Lógica para pagamento à vista (1x)
 			if ($num_installments === 1) {
 				$_installments[] = \sprintf(
-					'<option value="1">%s à vista</option>',
+					'<option value="1" selected="selected">%s à vista</option>',
 					static::formatPrice($total_amount)
 				);
 				continue;
@@ -140,8 +140,8 @@ class CreditCardService
 			// Lógica para exibir o total
 			$total_text = $show_total ? \sprintf('(%s)', static::formatPrice($total_amount)) : '';
 
-			// Lógica para selecionar a última opção
-			$selected_attr = ($index === $last_key) ? 'selected="selected"' : '';
+			// Lógica para selecionar a primeira opção (1x)
+			$selected_attr = '';
 
 			// Montagem da string final usando um array de partes para maior clareza
 			$option_parts = [
