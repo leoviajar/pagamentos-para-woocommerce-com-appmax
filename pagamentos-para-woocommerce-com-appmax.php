@@ -2,7 +2,7 @@
 
 /**
  * @since 1.0.0-beta
- * @version 1.1.1-beta
+ * @version 1.1.2-beta
  * @package \AppMax\WooCommerce\Gateway
  * @author Caique Araujo <caique@piggly.com.br>
  * @author Piggly Lab <dev@piggly.com.br>
