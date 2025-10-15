@@ -2,7 +2,7 @@
 
 /**
  * @since 1.0.0-beta
- * @version 1.1.2-beta
+ * @version 1.1.4-beta
  * @package \AppMax\WooCommerce\Gateway
  * @author Caique Araujo <caique@piggly.com.br>
  * @author Piggly Lab <dev@piggly.com.br>
@@ -14,7 +14,7 @@
  * Description:       Habilita os métodos de pagamentos do gateway de pagamentos da AppMax.
  * Requires at least: 4.0
  * Requires PHP:      7.2
- * Version:           1.1.2-beta
+ * Version:           1.1.4-beta
  * Author:            AppMax
  * Author URI:        https://appmax.com.br/
  * License:           GPLv3 or later
