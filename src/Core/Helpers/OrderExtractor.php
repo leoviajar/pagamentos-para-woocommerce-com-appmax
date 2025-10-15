@@ -253,16 +253,14 @@ class OrderExtractor
 	 */
 	public static function address(WC_Order $order): CreateAddressPayload
 	{
-		list($street, $number) = explode(", ", $order->get_billing_address_1());
-
-		if (empty($number)) {
-			$number = \get_post_meta($order->get_id(), '_billing_number', true) ?? 'S/N';
-		}
+		// Acessa os campos extras usando get_meta() com as chaves COM o underline,
+		$number = $order->get_meta('_billing_number', true) ?? 'S/N';
+		$neighborhood = $order->get_meta('_billing_neighborhood', true) ?? 'Não informado';
 
 		$address = new CreateAddressPayload(
-			$street,
+			$order->get_billing_address_1(),
 			$number,
-			\get_post_meta($order->get_id(), '_billing_neighborhood', true) ?? 'Não informado',
+			$neighborhood,
 			$order->get_billing_city(),
 			$order->get_billing_state(),
 			$order->get_billing_postcode(),
