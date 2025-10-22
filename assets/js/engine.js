@@ -38,21 +38,45 @@ var InputField = function() {
         }
     };
 
+    // Limpa qualquer erro visual do campo (remove classe e mensagem)
+    t.prototype.clearError = function() {
+        this._parent.classList.remove("has-error");
+        if (this._message) this._message.textContent = "";
+    };
+
+    // Atualiza preview e limpa erro sem validar (útil para atualizações de UI programáticas)
+    t.prototype.refreshUi = function() {
+        this.updatePreview();
+        this.clearError();
+    };
+
     // Valida o campo, mostra/esconde a mensagem de erro e retorna true (válido) ou false (inválido).
     t.prototype.isValid = function() {
-        var t = this._validate(this._input.value); // Roda a função de validação
-        if (t !== true) {
-            // Se a validação retornar uma string de erro...
-            this._parent.classList.add("has-error"); // Adiciona a classe de erro
-            if (this._message) {
-                this._message.textContent = t; // Mostra a mensagem de erro
-            }
-            return false; // Retorna que é inválido
-        } else {
-            // Se a validação retornar 'true'...
-            this._parent.classList.remove("has-error"); // Remove a classe de erro
-            return true; // Retorna que é válido
+        var result = this._validate(this._input.value); // Roda a função de validação
+
+        // Se a validação retornou 'true' => válido
+        if (result === true) {
+            this._parent.classList.remove("has-error");
+            return true;
         }
+
+        // Se o campo está vazio, não mostramos erro no blur (comportamento desejado)
+        if ((this._input.value || "").toString().trim() === "") {
+            this._parent.classList.remove("has-error");
+            if (this._message) this._message.textContent = "";
+            return true;
+        }
+
+        // Caso contrário, se a validação retornou uma string, mostra como erro
+        if (typeof result === 'string') {
+            this._parent.classList.add("has-error");
+            if (this._message) this._message.textContent = result;
+        } else {
+            // resultado inesperado — marcar como inválido genericamente
+            this._parent.classList.add("has-error");
+            if (this._message) this._message.textContent = "Campo inválido";
+        }
+        return false;
     };
 
     // Configura os eventos do campo.
@@ -61,12 +85,25 @@ var InputField = function() {
 
         // --- LÓGICA DE EVENTOS CORRIGIDA ---
 
-        // 1. No 'blur' (ao sair do campo): Roda a validação completa.
+
+        // 1. No 'focus' (quando o usuário clica no campo): limpar erros visuais
+        this._input.addEventListener("focus", function() {
+            t.clearError();
+        });
+
+        // 2. No 'blur' (ao sair do campo): Roda a validação completa, exceto quando
+        // a validação estiver temporariamente suspensa (usada para atualizações de UI).
+        this._suppressValidation = false;
         this._input.addEventListener("blur", function() {
+            if (t._suppressValidation) {
+                // apenas consome a vez e restaura o flag
+                t._suppressValidation = false;
+                return;
+            }
             t.isValid();
         });
 
-        // 2. No 'keyup' (a cada tecla): Apenas atualiza o preview visual.
+        // 3. No 'keyup' (a cada tecla): Apenas atualiza o preview visual.
         this._input.addEventListener("keyup", function() {
             t.updatePreview();
         });
@@ -76,6 +113,16 @@ var InputField = function() {
 
     return t;
 }();
+
+// Métodos utilitários públicos que permitem bloquear a validação ao forçar um blur programático
+InputField.prototype.suppressValidationOnceAndBlur = function() {
+    try {
+        this._suppressValidation = true;
+        // foca e tira o foco para forçar qualquer listener de UI externo a atualizar
+        this._input.focus();
+        this._input.blur();
+    } catch (e) {}
+};
 
 
 /**
@@ -94,7 +141,44 @@ var CheckoutListener = function() {
         this.brand_wrapper = null;
         this.fields.credit_card = this.mountFields("credit_card");
         this.brand_wrapper = document.getElementById("pagamentos-para-woocommerce-com-appmax-credit-card--flag");
+        // Observa mudança de método de pagamento para atualizar a UI quando o método do plugin for selecionado
+        var self = this;
+        document.addEventListener('change', function(ev) {
+            // checa se o target é um radio de método de pagamento nosso
+            var target = ev.target;
+            if (!target) return;
+            var id = target.id || '';
+            if (id.indexOf('payment_method_pagamentos_para_woocommerce_com_appmax_') === 0 && target.checked) {
+                // Quando nosso método é selecionado, força refresh da UI dos campos
+                self.refreshFieldsUi();
+            }
+        }, true);
+
+        // Escuta evento custom para compatibilidade com SPAs: quando disparado, força refresh
+        document.addEventListener('appmax:refreshCardRender', function() {
+            self.refreshFieldsUi();
+        });
     }
+
+    // Força refresh visual dos campos (útil após trocar método de pagamento)
+    e.prototype.refreshFieldsUi = function() {
+        var f = this.fields && this.fields.credit_card ? this.fields.credit_card : {};
+        for (var k in f) {
+            if (!Object.prototype.hasOwnProperty.call(f, k)) continue;
+            var inst = f[k];
+            if (!inst) continue;
+            try {
+                // se existe refreshUi (limpa erros sem validar), usa
+                if (typeof inst.refreshUi === 'function') {
+                    inst.refreshUi();
+                }
+                // se existe suppressValidationOnceAndBlur, chama para forçar render sem validar
+                if (typeof inst.suppressValidationOnceAndBlur === 'function') {
+                    inst.suppressValidationOnceAndBlur();
+                }
+            } catch (e) {}
+        }
+    };
 
     e.prototype.isPaymentMethodSelected = function(e) {
         var t = document.getElementById("payment_method_pagamentos_para_woocommerce_com_appmax_".concat(e));
@@ -117,13 +201,54 @@ var CheckoutListener = function() {
     };
 
     e.prototype.validateName = function(e) {
-        return 0 !== e.length || "Preenchimento obrigatório";
+        if (0 === e.length) return "Preenchimento obrigatório";
+        // Exige nome e sobrenome
+        var parts = e.trim().split(/\s+/).filter(function(p){ return p.length>0; });
+        return parts.length >= 2 && parts[0].length >= 2 && parts[1].length >= 2 || "Informe nome e sobrenome";
     };
 
     e.prototype.validateCvv = function(e) {
         if (0 === e.length) return "Preenchimento obrigatório";
         var t = e.replace(/[^0-9.]/g, "");
         return !!/^[0-9]{3,4}$/.test(t) || "O CVV está inválido";
+    };
+
+    // Valida a data de expiração usando mês e ano. Deve retornar true se válido, ou uma string com a mensagem de erro.
+    e.prototype.validateExpiry = function(monthValue, yearValue) {
+        // Normalize inputs
+        var m = (monthValue || "").toString().replace(/[^0-9]/g, "");
+        var y = (yearValue || "").toString().replace(/[^0-9]/g, "");
+
+        if (m.length === 0 || y.length === 0) return "Preenchimento obrigatório";
+
+        var month = parseInt(m, 10);
+        var year = parseInt(y, 10);
+
+        if (isNaN(month) || month < 1 || month > 12) return "Mês inválido";
+
+        // Support 2-digit or 4-digit years. If 2-digit, convert to 4-digit (assume 20xx)
+        if (y.length === 2) {
+            // e.g. '25' -> 2025
+            year = 2000 + year;
+        }
+
+        if (isNaN(year)) return "Ano inválido";
+
+        var now = new Date();
+        var currentYear = now.getFullYear();
+        var currentMonth = now.getMonth() + 1; // zero-based
+
+        // Reject unrealistic far future years (e.g., more than 20 years ahead)
+        if (year > currentYear + 20) return "Ano de expiração inválido";
+
+        // If year is before current year -> expired
+        if (year < currentYear) return "Cartão expirado";
+
+        // If same year, check month
+        if (year === currentYear && month < currentMonth) return "Cartão expirado";
+
+        // All good
+        return true;
     };
 
     // Encontra os elementos HTML do formulário.
@@ -149,6 +274,11 @@ var CheckoutListener = function() {
             year: {
                 render: n.querySelector("".concat(r, "-previewer-year")),
                 input: t.querySelector("".concat(r, "-card_year"))
+            }
+            ,
+            expiry: {
+                render: null,
+                input: t.querySelector("".concat(r, "-card_expiry"))
             }
         };
     };
@@ -178,15 +308,55 @@ var CheckoutListener = function() {
             o.cvv = new InputField(a.cvv, this.validateCvv.bind(this));
         }
         // Para mês e ano, a validação é simples (sempre retorna true), mas a estrutura permite expandir.
-        if (a.month) {
-            o.month = new InputField(a.month, (function() {
-                return true;
-            }));
+        // For month and year, validate together using validateExpiry.
+        // We'll wire each InputField with a small validator that reads both fields and
+        // returns true only when expiry is valid. Validation runs on blur (handled by InputField).
+        if (a.month && a.year) {
+            // helper that reads both inputs
+            var expiryValidator = function() {
+                // Read values from DOM elements (not from the InputField instances to keep it simple)
+                var monthVal = (a.month && a.month.input) ? a.month.input.value : "";
+                var yearVal = (a.year && a.year.input) ? a.year.input.value : "";
+                return t.validateExpiry(monthVal, yearVal);
+            };
+
+            o.month = new InputField(a.month, expiryValidator);
+            o.year = new InputField(a.year, expiryValidator);
+
+            // Also update preview when either changes
+            a.month.input.addEventListener("keyup", function() {
+                // Atualiza o preview do próprio campo via instância, se existir
+                o.month && o.month.updatePreview();
+            });
+            a.year.input.addEventListener("keyup", function() {
+                o.year && o.year.updatePreview();
+            });
+        } else {
+            if (a.month) {
+                o.month = new InputField(a.month, (function() { return true; }));
+            }
+            if (a.year) {
+                o.year = new InputField(a.year, (function() { return true; }));
+            }
         }
-        if (a.year) {
-            o.year = new InputField(a.year, (function() {
-                return true;
-            }));
+
+        // Se houver um input visível de expiry (MM/YYYY), cria um InputField que valida
+        // somente quando o usuário digitou algo. A validação usa os campos hidden month/year.
+        if (a.expiry && a.expiry.input) {
+            var expiryVisible = a.expiry.input;
+            var expiryValidator = function(val) {
+                // Se o campo visível está vazio, não validar — evita 'Preenchimento obrigatório' em blur
+                if (!val || val.toString().trim() === '') return true;
+                // Lê os campos hidden (mês/ano)
+                var monthVal = (a.month && a.month.input) ? a.month.input.value : '';
+                var yearVal = (a.year && a.year.input) ? a.year.input.value : '';
+                return t.validateExpiry(monthVal, yearVal);
+            };
+            o.expiry = new InputField(a.expiry, expiryValidator);
+            // Ao digitar no campo expiry visível, atualiza preview via instância
+            expiryVisible.addEventListener('keyup', function() {
+                o.expiry && o.expiry.updatePreview();
+            });
         }
         return o;
     };
