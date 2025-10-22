@@ -181,7 +181,7 @@ class CreditCardGateway extends BaseGateway
 		$validations = [
 			'number' => 'O Número do Cartão é obrigatório e deve ser preenchido',
 			'name' => 'O Nome do Titular é obrigatório e deve ser preenchido',
-			'cvv' => 'O CVV é obrigatório e deve ser preenchido',
+			'cvv' => 'O Código de segurança é obrigatório e deve ser preenchido',
 			'month' => 'O mês de expiração é obrigatório e deve ser preenchido',
 			'year' => 'O ano de expiração é obrigatório e deve ser preenchido',
 		];
