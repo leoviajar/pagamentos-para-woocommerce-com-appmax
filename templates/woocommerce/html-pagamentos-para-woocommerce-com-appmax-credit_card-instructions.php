@@ -237,53 +237,35 @@ $settings = Connector::settings()->get('credit_card');
 		</p>
 		<div class="clear"></div>
 		<p class="form-row form-row-first">
-			<label for="pagamentos-para-woocommerce-com-appmax-credit_card-card_month">
-				Validade: <span class="required">*</span>
-			</label>
-			<select class="input" id="pagamentos-para-woocommerce-com-appmax-credit_card-card_month" style="height: var(--form-height)"
-				name="pagamentos_para_woocommerce_com_appmax_credit_card_month">
-				<?php
-				$curr_month = intval(date('m'));
-$aliases = ['Janeiro', 'Feveiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-
-foreach (range(1, 12) as $month) {
-	echo sprintf(
-		'<option value="%d" %s>%02d | %s</option>',
-		$month,
-		$month === $curr_month ? 'selected="selected"' : '',
-		$month,
-		$aliases[$month-1]
-	);
-}
-
-?>
-			</select>
-		</p>
-		<p class="form-row form-row-last">
-			<label for="pagamentos-para-woocommerce-com-appmax-credit_card-card_year">
-				Ano <span class="required">*</span>
-			</label>
-			<select class="input" id="pagamentos-para-woocommerce-com-appmax-credit_card-card_year" style="height: var(--form-height)"
-				name="pagamentos_para_woocommerce_com_appmax_credit_card_year">
-				<?php
-$curr_year = intval(date('Y'));
-$next_year = $curr_year+30;
-
-foreach (range($curr_year, $next_year) as $year) {
-	echo sprintf('<option value="%d">%d</option>', $year, $year);
-}
-?>
-			</select>
+				<label for="pagamentos-para-woocommerce-com-appmax-credit_card-card_expiry">
+					Validade<span class="required">*</span> <span style="font-size: 11px; color: #666">(mês/ano)</span>
+				</label>
+			<input type="text" autocomplete="off" data-mask="##/####" maxlength="7" style="height: var(--form-height)"
+				class="input input-text masked" id="pagamentos-para-woocommerce-com-appmax-credit_card-card_expiry"
+				name="pagamentos_para_woocommerce_com_appmax_credit_card_expiry" placeholder="MM/AA" required>
+			<input type="hidden" class="input input-text" id="pagamentos-para-woocommerce-com-appmax-credit_card-card_month" 
+				name="pagamentos_para_woocommerce_com_appmax_credit_card_month" value="">
+			<input type="hidden" class="input input-text" id="pagamentos-para-woocommerce-com-appmax-credit_card-card_year" 
+				name="pagamentos_para_woocommerce_com_appmax_credit_card_year" value="">
+			<span class="input-error">A validade do cartão é inválida</span>
 		</p>
 		<div class="clear"></div>
-		<p class="form-row form-row-wide">
-			<label for="pagamentos-para-woocommerce-com-appmax-credit_card-card_cvv">
-				Cod. de segurança (CVV) <span class="required">*</span>
-			</label>
-			<input type="text" autocomplete="off" data-mask="####" maxlength="4" style="height: var(--form-height)"
-				class="input input-number masked" id="pagamentos-para-woocommerce-com-appmax-credit_card-card_cvv"
-				name="pagamentos_para_woocommerce_com_appmax_credit_card_cvv" placeholder="123">
-			<span class="input-error">O código de segurança é inválido</span>
+		<p class="">
+			<div class="label-cvv form-row form-row-last">
+				<label for="pagamentos-para-woocommerce-com-appmax-credit_card-card_cvv" class="security-code" style="display: flex; gap: 4px">
+					<span>Cod. de segurança</span><span class="required">*</span>
+					<span class="wrapper">
+					<a aria-labelledby="tooltip-label">
+						<img id="static-map-image" src="https://awesome-assets.yampi.me/checkout/build/mix/assets/img/icons/question.svg" alt="">
+						<p id="tooltip-label" role="tooltip">3 dígitos no verso do cartão. Amex: 4 dígitos na frente.</p>
+					</a>
+					</span>
+				</label>
+				<input type="text" autocomplete="off" data-mask="####" maxlength="4" style="height: var(--form-height)"
+					class="input input-number masked" id="pagamentos-para-woocommerce-com-appmax-credit_card-card_cvv"
+					name="pagamentos_para_woocommerce_com_appmax_credit_card_cvv" placeholder="123">
+				<span class="input-error">O código de segurança é inválido</span>
+			</div>
 		</p>
 		<div class="clear"></div>
 		<?php
@@ -307,45 +289,155 @@ if (!empty($installments)) :
 
 jQuery(document).ready(function($) {
     
-    $("#pagamentos-para-woocommerce-com-appmax-credit_card-card_number").focus(function() {}).focus().blur(); 
-    $("#pagamentos-para-woocommerce-com-appmax-credit_card-card_name").focus(function() {}).focus().blur(); 
+	// Em vez de forçar focus().blur() imediatamente (problemático em SPAs),
+	// usamos um MutationObserver para detectar quando os inputs aparecem/ficam visíveis
+	// e então forçamos um blur sem disparar validação. Também mantemos um fallback
+	// de retries estendido para cobrir casos extremos.
+	(function() {
+		var tries = 0;
+		var maxTries = 40; // ~40 * 250ms = 10s de tentativas como fallback
+		var retryDelay = 250;
+
+		function safeBlur($el) {
+			if (!$el || $el.length === 0) return false;
+			if ($el.is(':visible')) {
+				try {
+					$el.focus();
+					$el.blur();
+					return true;
+				} catch (e) {}
+			}
+			return false;
+		}
+
+		function attemptOnce() {
+			tries++;
+			var $num = $("#pagamentos-para-woocommerce-com-appmax-credit_card-card_number");
+			var $name = $("#pagamentos-para-woocommerce-com-appmax-credit_card-card_name");
+			var done = false;
+			done = safeBlur($num) || done;
+			done = safeBlur($name) || done;
+			return done;
+		}
+
+		// retry fallback
+		function scheduleRetry() {
+			if (tries >= maxTries) return;
+			setTimeout(function() {
+				if (!attemptOnce()) scheduleRetry();
+			}, retryDelay);
+		}
+
+		// observer: observa adições ao DOM e mudanças de atributos (visibilidade)
+		var observer = new MutationObserver(function(mutations, obs) {
+			if (attemptOnce()) {
+				try { obs.disconnect(); } catch (e) {}
+			}
+		});
+
+		// inicia tentativa imediata, depois observa e agenda retries
+		if (!attemptOnce()) {
+			observer.observe(document.body, { childList: true, subtree: true, attributes: true });
+			scheduleRetry();
+		} else {
+			try { observer.disconnect(); } catch (e) {}
+		}
+
+		// expõe um evento global para reconectar caso seu SPA precise reinicializar manualmente
+		document.addEventListener('appmax:refreshCardRender', function() {
+			tries = 0;
+			try {
+				observer.disconnect();
+			} catch (e) {}
+			observer = new MutationObserver(function(mutations, obs) {
+				if (attemptOnce()) {
+					try { obs.disconnect(); } catch (e) {}
+				}
+			});
+			if (!attemptOnce()) {
+				observer.observe(document.body, { childList: true, subtree: true, attributes: true });
+				scheduleRetry();
+			} else {
+				try { observer.disconnect(); } catch (e) {}
+			}
+		});
+	})();
+    
+    // Processa o campo de validade MM/AAAA
+    $("#pagamentos-para-woocommerce-com-appmax-credit_card-card_expiry").on('input', function() {
+        var value = $(this).val().replace(/\D/g, ''); // Remove tudo que não é número
+        var month = '';
+        var year = '';
+        
+        if (value.length >= 2) {
+            month = value.substring(0, 2);
+            
+            if (value.length >= 3) {
+                year = value.substring(2, 6); // Captura até 4 dígitos do ano
+            }
+        } else if (value.length > 0) {
+            month = value;
+        }
+        
+        // Atualiza os campos hidden
+        $('#pagamentos-para-woocommerce-com-appmax-credit_card-card_month').val(month);
+        $('#pagamentos-para-woocommerce-com-appmax-credit_card-card_year').val(year);
+        
+        // Atualiza o preview do cartão
+        updateExpiryPreview();
+    });
+    
+    function updateExpiryPreview() {
+        var month = $('#pagamentos-para-woocommerce-com-appmax-credit_card-card_month').val();
+        var year = $('#pagamentos-para-woocommerce-com-appmax-credit_card-card_year').val();
+        
+        if (month && year) {
+            // Mostra apenas os 2 últimos dígitos do ano
+            var shortYear = year.length === 4 ? year.substring(2, 4) : year.substring(0, 2);
+            
+            $('#pagamentos-para-woocommerce-com-appmax-credit_card-previewer-month').text(month.padStart(2, '0'));
+            $('#pagamentos-para-woocommerce-com-appmax-credit_card-previewer-year').text(shortYear);
+        } else if (month) {
+            $('#pagamentos-para-woocommerce-com-appmax-credit_card-previewer-month').text(month.padStart(2, '0'));
+            $('#pagamentos-para-woocommerce-com-appmax-credit_card-previewer-year').text('••');
+        } else {
+            $('#pagamentos-para-woocommerce-com-appmax-credit_card-previewer-month').text('••');
+            $('#pagamentos-para-woocommerce-com-appmax-credit_card-previewer-year').text('••');
+        }
+    }
 });
 
 </script>
 
-<script style="display:none;" type="text/javascript" language="javascript">
+<script type="text/javascript" language="javascript">
 // Código para inicializar o card.js e conectar os campos
 var card = new Card({
-    form: '#pagamentos-para-woocommerce-com-appmax-credit_card', // O seletor para o seu formulário de pagamento
-    container: '.card-wrapper', // O div onde o cartão será exibido
+    form: '#pagamentos-para-woocommerce-com-appmax-credit_card',
+    container: '.card-wrapper',
     formSelectors: {
-        numberInput: 'input#pagamentos-para-woocommerce-com-appmax-credit_card-card_number', // Seletor do campo de número do cartão
-        expiryInput: 'select#validade-mes-mercadopago', // Seletor dos campos de validade
-        cvcInput: 'input#pagamentos-para-woocommerce-com-appmax-credit_card-card_cvv', // Seletor do campo CVC
-        nameInput: 'input#pagamentos-para-woocommerce-com-appmax-credit_card-card_name' // Seletor do campo de nome
+        numberInput: 'input#pagamentos-para-woocommerce-com-appmax-credit_card-card_number',
+        expiryInput: 'input#pagamentos-para-woocommerce-com-appmax-credit_card-card_expiry',
+        cvcInput: 'input#pagamentos-para-woocommerce-com-appmax-credit_card-card_cvv',
+        nameInput: 'input#pagamentos-para-woocommerce-com-appmax-credit_card-card_name'
     },
     
     messages: {
-        validDate: 'Validade', // optional - default 'valid\nthru'
-        monthYear: 'MÊS/ANO', // optional - default 'month/year'
+        validDate: 'Validade',
+        monthYear: 'MÊS/ANO',
     },
     
-    // Default placeholders for rendered fields - optional
     placeholders: {
-        number: '•••• •••• •••• ••••', // Placeholder para o número do cartão
-        name: 'NOME E SOBRENOME', // Placeholder para o nome do titular
-        expiry: '••/••', // Placeholder para a validade
-        cvc: '•••' // Placeholder para o CVC
+        number: '•••• •••• •••• ••••',
+        name: 'NOME E SOBRENOME',
+        expiry: '••/••••',
+        cvc: '•••'
     },
 
-    // Define outras configurações, se necessário
-    formatting: true, // Habilita formatação automática dos campos
-    debug: false // Modo de depuração desligado
+    formatting: true,
+    debug: false
 });
 
 jQuery(function($) {
-    var year_selector = 'select[id="pagamentos-para-woocommerce-com-appmax-credit_card-card_month"]';
-    var month_selector = 'select[id="pagamentos-para-woocommerce-com-appmax-credit_card-card_year"]';
     var number_input = '#pagamentos-para-woocommerce-com-appmax-credit_card-card_number';
     var cvc_input = '#pagamentos-para-woocommerce-com-appmax-credit_card-card_cvv';
     var name_input = '#pagamentos-para-woocommerce-com-appmax-credit_card-card_name';
@@ -366,15 +458,13 @@ jQuery(function($) {
     }
     
     function updateCardExpiry() {
-        var year = $(year_selector).val() === '' ? '••' : $(year_selector).val();
-        var month = $(month_selector).val() === '' ? '••' : $(month_selector).val();
-        $('.jp-card-expiry').text(month + '/' + year);  
+        var expiry = $('#pagamentos-para-woocommerce-com-appmax-credit_card-card_expiry').val();
+        $('.jp-card-expiry').text(expiry === '' ? '••/••••' : expiry);  
     }
 
-    $(month_selector).change(updateCardExpiry);
-    $(year_selector).change(updateCardExpiry);
+    $('#pagamentos-para-woocommerce-com-appmax-credit_card-card_expiry').on('input', updateCardExpiry);
     
-    $(month_selector).add(year_selector).on('focus', function() {
+    $('#pagamentos-para-woocommerce-com-appmax-credit_card-card_expiry').on('focus', function() {
         $('.jp-card-expiry').addClass('jp-card-focused');
     }).on('blur', function() {
         $('.jp-card-expiry').removeClass('jp-card-focused');
