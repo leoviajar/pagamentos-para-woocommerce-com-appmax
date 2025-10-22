@@ -173,11 +173,11 @@ abstract class BaseGateway extends WC_Payment_Gateway
 	{
 		Connector::debugger()->force()->error($e->getMessage());
 
-		$message = 'Não foi possível concluir a compra no momento, contate a loja.';
+		$message = 'Transação não autorizada pela operadora do cartão, confira seus dados ou tente um novo cartão';
 
 		if ($e instanceof ApiResponseException) {
 			if (isset($e->getResponse()->getBody()['text'])) {
-				$message = \sprintf('Não foi possível concluir a compra no momento: <strong>%s</strong>.', \esc_html($e->getResponse()->getBody()['text']));
+				$message = \sprintf('Transação não autorizada pela operadora do cartão, confira seus dados ou tente um novo cartão', \esc_html($e->getResponse()->getBody()['text']));
 			}
 		}
 
