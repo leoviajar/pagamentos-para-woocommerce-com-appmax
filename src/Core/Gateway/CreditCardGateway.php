@@ -184,6 +184,7 @@ class CreditCardGateway extends BaseGateway
 			'cvv' => 'O Código de segurança é obrigatório e deve ser preenchido',
 			'month' => 'O mês de expiração é obrigatório e deve ser preenchido',
 			'year' => 'O ano de expiração é obrigatório e deve ser preenchido',
+			'installments' => 'Selecione o número de parcelas',
 		];
 
 		foreach ($validations as $key => $message) {

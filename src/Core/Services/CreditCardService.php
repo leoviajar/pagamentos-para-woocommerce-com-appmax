@@ -102,6 +102,10 @@ class CreditCardService
 		}
 
 		$_installments = [];
+		
+		// Adiciona opção padrão "Selecione..."
+		$_installments[] = '<option value="" selected="selected">Selecione...</option>';
+		
 		// $last_key = array_key_last($installments); // Chave do último elemento para a lógica de 'selected'
 
 		foreach ($installments as $index => $installment) {
@@ -123,7 +127,7 @@ class CreditCardService
 			// Lógica para pagamento à vista (1x)
 			if ($num_installments === 1) {
 				$_installments[] = \sprintf(
-					'<option value="1" selected="selected">%s à vista</option>',
+					'<option value="1">%s à vista</option>',
 					static::formatPrice($total_amount)
 				);
 				continue;
