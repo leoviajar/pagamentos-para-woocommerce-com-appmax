@@ -31,7 +31,7 @@ class CvvValidation
 		$value = Parser::anyToString($value);
 
 		if ((\strlen($value) < 3 || \strlen($value) > 4) || !\ctype_digit($value)) {
-			throw new InvalidArgumentException("O CVV do cartão é inválido.");
+			throw new InvalidArgumentException("O código de segurança do cartão está inválido.");
 		}
 
 		return $value;
