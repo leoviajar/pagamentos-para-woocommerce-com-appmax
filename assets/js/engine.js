@@ -202,9 +202,11 @@ var CheckoutListener = function() {
 
     e.prototype.validateName = function(e) {
         if (0 === e.length) return "Preenchimento obrigatório";
-        // Exige nome e sobrenome
+        // Bloqueia números no nome
+        if (/\d/.test(e)) return "Nome não pode conter números";
+        // Exige nome e sobrenome (aceita iniciais de 1 letra)
         var parts = e.trim().split(/\s+/).filter(function(p){ return p.length>0; });
-        return parts.length >= 2 && parts[0].length >= 2 && parts[1].length >= 2 || "Informe nome e sobrenome";
+        return parts.length >= 2 && parts[0].length >= 1 && parts[1].length >= 1 || "Informe nome e sobrenome";
     };
 
     e.prototype.validateCvv = function(e) {
@@ -303,6 +305,21 @@ var CheckoutListener = function() {
         }
         if (a.name) {
             o.name = new InputField(a.name, this.validateName.bind(this));
+            // Bloqueia digitação de números
+            a.name.input.addEventListener("keypress", function(event) {
+                if (/\d/.test(String.fromCharCode(event.which || event.keyCode))) {
+                    event.preventDefault();
+                }
+            });
+            // Bloqueia colagem de números
+            a.name.input.addEventListener("paste", function(event) {
+                setTimeout(function() {
+                    a.name.input.value = a.name.input.value.replace(/\d/g, "");
+                    if (a.name.render) {
+                        a.name.render.textContent = a.name.input.value;
+                    }
+                }, 0);
+            });
         }
         if (a.cvv) {
             o.cvv = new InputField(a.cvv, this.validateCvv.bind(this));
